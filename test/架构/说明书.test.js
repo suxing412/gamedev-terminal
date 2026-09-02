@@ -157,3 +157,57 @@ test('书⑩ 回归条件是可数的：待建还剩几项', () => {
   console.log(`    ↳ 说明书进度：已建 ${建} · 待建 ${剩} · 明确不带 ${表.不带.length}`);
   console.log(`    ↳ 回归条件：待建清空 = 新仓可取代旧仓`);
 });
+
+// ── 六、仓的目录本身也要有说明书 ────────────────────────────────
+//
+// 2026-09-03 制作人看着本地文件夹问「这些都什么东西」。
+// 当时说明书只写了模块，**没写目录本身**——十个顶层条目没有一个有解释，
+// 而且六个层目录还是空的，git 不跟踪空目录，GitHub 上根本看不见它们。
+//
+// 「目录里放什么」是最常被问、最容易过期的一种知识。所以它也进正本、也上判据。
+
+test('书⑪ 每个顶层目录与文件都在 目录 表里（加了不写会红）', () => {
+  const 表里 = new Set((表.目录 || []).map((d) => d.名));
+  const 忽略 = new Set(['.git', 'node_modules', '.gitignore']);
+  const 漏 = [];
+  for (const e of fs.readdirSync(仓根, { withFileTypes: true })) {
+    if (忽略.has(e.name)) continue;
+    if (e.name.startsWith('.') && !表里.has(e.name)) continue;   // 点文件按需登记
+    if (!表里.has(e.name)) 漏.push(e.name);
+  }
+  assert.deepStrictEqual(漏, [],
+    `这些顶层条目没有说明：${漏.join('、')}。写进 docs/模块.json 的「目录」一节`);
+});
+
+test('书⑫ 目录 表里说的东西盘上真的有（写了没建也会红）', () => {
+  for (const d of (表.目录 || [])) {
+    assert.ok(在(d.名), `目录表里写了「${d.名}」，盘上没有`);
+    assert.ok(d.装什么 && d.装什么.length >= 8, `「${d.名}」的「装什么」太短`);
+    assert.ok(d.谁改 && d.谁改.trim(), `「${d.名}」没写谁往里放东西`);
+  }
+});
+
+test('书⑬ 所有生成物都与正本一致（手改生成的文件会被抓）', () => {
+  // git 不跟踪空目录：层目录还没有代码时，说明.md 就是它在仓里存在的唯一凭据。
+  // 「与正本一致」用**先全量快照、再重生成一次、最后逐份比对**来判。
+  //
+  // **首版把它拆成了两条（⑬ 管层说明、⑭ 管总说明书），结果 ⑭ 恒真**：
+  // ⑬ 里那次 execFileSync 已经把 说明书.md 一起重生成了，等 ⑭ 去读「旧值」时
+  // 证据早被自己人抹掉了。实测：手改 docs/说明书.md，整套仍然全绿。
+  // 一条判据把另一条判据要验的现场清理了——所以它们必须合成一条。
+  const { execFileSync } = require('node:child_process');
+  const 生成物 = ['docs/说明书.md', ...表.层.map((l) => path.join(l.目录, '说明.md'))];
+
+  const 快照 = new Map();
+  for (const p of 生成物) {
+    assert.ok(在(p), `缺 ${p}——跑一次 npm run 说明书`);
+    快照.set(p, 读(p));                       // **先全部读完，再重生成**
+  }
+  execFileSync(process.execPath, [path.join(仓根, 'tools', '出说明书.js')], { cwd: 仓根 });
+  const 不一致 = [];
+  for (const [p, 旧] of 快照) if (读(p) !== 旧) 不一致.push(p);
+  assert.deepStrictEqual(不一致, [],
+    `这些生成物与正本不一致，有人手改了：${不一致.join('、')}
+` +
+    '改 docs/模块.json 然后 npm run 说明书');
+});
