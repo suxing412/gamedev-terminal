@@ -5,7 +5,8 @@
   "description": "游戏开发者终端 —— 对话坐席 / 生产管线 / 值守哨兵，三个角色一个产品",
   "scripts": {
     "test": "node test/跑测试.js",
-    "说明书": "node tools/出说明书.js"
+    "说明书": "node tools/出说明书.js",
+    "评审稿": "node tools/出评审稿.js"
   },
   "engines": {
     "node": ">=20"
