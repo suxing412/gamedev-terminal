@@ -107,6 +107,22 @@ const TABLE = [
     test: 'test/内核/证据.test.js',
     expectRedCase: '证⑤',
   },
+  {
+    name: '适配器：执行席也能写执行池',
+    file: '编排/适配器.js',
+    find: "if (!协议.能指定下属harness(上级协议)) {",
+    replace: 'if (false) {',
+    test: 'test/编排/适配器.test.js',
+    expectRedCase: '配④',
+  },
+  {
+    name: '适配器-claude：写闸钩子永远放行',
+    file: '编排/适配器-claude.js',
+    find: "    if (r.行) return {};",
+    replace: '    if (true) return {};',
+    test: 'test/编排/适配器-claude.test.js',
+    expectRedCase: '克②',
+  },
 ];
 
 const filter = process.argv[2] || '';
