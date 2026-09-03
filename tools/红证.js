@@ -123,6 +123,22 @@ const TABLE = [
     test: 'test/编排/适配器-claude.test.js',
     expectRedCase: '克②',
   },
+  {
+    name: '装配器：人格层进了执行卷',
+    file: '编排/装配器.js',
+    find: "  段.push(`职能：${声.职能}`);",
+    replace: "  段.push(`职能：${声.职能}`); 段.push(`称呼：${(协议.人格语气||{}).称呼}`);",
+    test: 'test/编排/装配器.test.js',
+    expectRedCase: '装④',
+  },
+  {
+    name: '校验：空改动也放行',
+    file: '领域/校验.js',
+    find: "if (改.length === 0) 违.push(",
+    replace: 'if (false) 违.push(',
+    test: 'test/领域/校验.test.js',
+    expectRedCase: '检③',
+  },
 ];
 
 const filter = process.argv[2] || '';

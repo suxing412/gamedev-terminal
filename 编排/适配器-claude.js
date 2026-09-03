@@ -40,13 +40,25 @@ function 真版本() {
 /** 改动清单：git diff 说了算。 */
 function 真git改动(工作目录) {
   const 跑 = (args) => spawnSync('git', args, { cwd: 工作目录, encoding: 'utf8', windowsHide: true });
-  const 名单 = 跑(['diff', '--name-only']);
+  // **不能只用 git diff --name-only：它不列未跟踪的新文件。** 第 3 步端到端第一次干跑就断在这：
+  // 假 query 写了 Hello.cs，改动清单却是空的，初检红。新建单产出的资产天然是新文件——
+  // 这条不修，所有新建单都过不了初检。
+  // 文件清单走 status --porcelain -uall（改动 + 未跟踪都在）；未跟踪的先 add -N（intent-to-add，
+  // 只标记不入内容）再 diff，diff 里才有它们。
+  const 状 = 跑(['status', '--porcelain', '-uall']);
+  if (状.status !== 0) return { 文件: [], diff: '', 注: `git status 失败：${(状.stderr || '').trim()}` };
+  const 行 = (状.stdout || '').split('\n').filter(Boolean);
+  const 文件 = [];
+  const 未跟踪 = [];
+  for (const l of 行) {
+    const 码 = l.slice(0, 2); const 路 = l.slice(3).trim().replace(/^"|"$/g, '');
+    if (!路) continue;
+    文件.push(路);
+    if (码 === '??') 未跟踪.push(路);
+  }
+  if (未跟踪.length) 跑(['add', '-N', '--', ...未跟踪]);
   const 差 = 跑(['diff']);
-  if (名单.status !== 0) return { 文件: [], diff: '', 注: `git diff 失败：${(名单.stderr || '').trim()}` };
-  return {
-    文件: (名单.stdout || '').split('\n').map((s) => s.trim()).filter(Boolean),
-    diff: 差.stdout || '',
-  };
+  return { 文件, diff: 差.stdout || '' };
 }
 
 /** PreToolUse 钩子：只管写类工具，别的放行。返回 SDK 认的形状。 */
