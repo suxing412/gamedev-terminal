@@ -3,3 +3,7 @@ dist/
 *.log
 .DS_Store
 数据/
+
+# Obsidian 的每用户 UI 状态：每次开都变，不进仓。core-plugins.json 之类的 vault 配置留着。
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
