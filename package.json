@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node test/跑测试.js",
     "说明书": "node tools/出说明书.js",
-    "评审稿": "node tools/出评审稿.js"
+    "评审稿": "node tools/出评审稿.js",
+    "红证": "node tools/红证.js"
   },
   "engines": {
     "node": ">=20"
