@@ -83,6 +83,30 @@ const TABLE = [
     test: 'test/内核/路径.test.js',
     expectRedCase: '径③',
   },
+  {
+    name: '协议：改状态工具不拦',
+    file: '领域/协议.js',
+    find: "for (const t of 工具) if (/改.*状态|迁移|move_state|set_state/i.test(String(t)))",
+    replace: 'for (const t of 工具) if (false)',
+    test: 'test/领域/协议.test.js',
+    expectRedCase: '议⑤',
+  },
+  {
+    name: '权限：工单要没给的目录就放宽',
+    file: '领域/权限.js',
+    find: "if (!被覆盖(d, s.可碰目录 || [])) throw new 放宽拒绝(",
+    replace: 'if (false) throw new 放宽拒绝(',
+    test: 'test/领域/权限.test.js',
+    expectRedCase: '权③',
+  },
+  {
+    name: '证据：契约版本不比',
+    file: '内核/证据.js',
+    find: 'if (包.契约版本 !== 契约版本) {',
+    replace: 'if (false) {',
+    test: 'test/内核/证据.test.js',
+    expectRedCase: '证⑤',
+  },
 ];
 
 const filter = process.argv[2] || '';
