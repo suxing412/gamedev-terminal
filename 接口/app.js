@@ -54,6 +54,10 @@ function 造app(依赖) {
   注册表.注('GET', '/api/views', () => 视图表(表), '视图表：页签从正本的系统表生成');
   注册表.注('GET', '/api/routes', () => 注册表.列(), '路由表');
 
+  // 生产接口：给了数据区才挂。**不默认指向旧仓的数据区**——要显式给（--数据区 / GDT_DATA / 依赖.数据区根）。
+  const 数据区根 = d.数据区根 || process.env.GDT_DATA || null;
+  if (数据区根) require('./prod.js').注(注册表, { 数据区根, 钟, 仓根: 仓, 工作目录: d.工作目录 || process.env.GDT_WORK || 仓 });
+
   const server = http.createServer((req, res) => { 注册表模块.分发(注册表, req, res, { 静态根 }); });
   return {
     注册表, server,
@@ -64,8 +68,9 @@ function 造app(依赖) {
 }
 
 if (require.main === module) {
-  const app = 造app();
-  app.起(Number(process.env.GDT_PORT) || 4300).then((a) => console.log(`终端接口 http://127.0.0.1:${a.port}  （视图表 ${app.视图表().length} 格）`));
+  const 参 = (名) => { const i = process.argv.indexOf(名); return i > 0 ? process.argv[i + 1] : undefined; };
+  const app = 造app({ 数据区根: 参('--数据区'), 工作目录: 参('--工作目录') });
+  app.起(Number(参('--端口')) || Number(process.env.GDT_PORT) || 4300).then((a) => console.log(`终端接口 http://127.0.0.1:${a.port}  （视图表 ${app.视图表().length} 格 · 数据区 ${参('--数据区') || process.env.GDT_DATA || '（没给，生产接口没挂）'}）`));
 }
 
 module.exports = { 造app, 视图表 };

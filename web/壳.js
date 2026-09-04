@@ -46,14 +46,15 @@
     );
   }
 
-  /** 页面表：系统键 → 渲染函数(视图格, 状态)。没登记的走占位。 */
+  /** 页面表：系统键 → 渲染函数(视图格, 状态)，或 { 画, 数据: [要先拉的接口] }。没登记的走占位。 */
   const 页面表 = {};
+  const 取画 = (登) => (typeof 登 === 'function' ? 登 : (登 && typeof 登.画 === 'function' ? 登.画 : null));
 
   function 渲染(视图表, 状态) {
     const 表 = Array.isArray(视图表) ? 视图表 : [];
     const 当前 = 表.some((v) => v.键 === 状态.当前) ? 状态.当前 : (表[0] ? 表[0].键 : null);
     const v = 表.find((x) => x.键 === 当前);
-    const 画 = v ? (页面表[v.键] || 占位页) : null;
+    const 画 = v ? (取画(页面表[v.键]) || 占位页) : null;
     return 节('div', { class: '壳' },
       顶条(状态),
       页签栏(表, 当前),
@@ -61,20 +62,37 @@
     );
   }
 
-  /** 树 → DOM。只在浏览器里跑（判据用假 document）。 */
-  function 挂(树, doc) {
+  const SVG标签 = new Set(['svg', 'g', 'rect', 'line', 'text', 'path', 'circle', 'polyline', 'polygon', 'title', 'defs', 'marker']);
+  const SVG = 'http://www.w3.org/2000/svg';
+
+  /** 树 → DOM。只在浏览器里跑（判据用假 document）。svg 及其子孙走 createElementNS，不然画不出来。 */
+  function 挂(树, doc, 在svg) {
     const d = doc || document;
     if (typeof 树 === 'string' || typeof 树 === 'number') return d.createTextNode(String(树));
-    const el = d.createElement(树.tag);
+    const 是svg = 在svg || 树.tag === 'svg';
+    const el = (是svg && SVG标签.has(树.tag) && d.createElementNS) ? d.createElementNS(SVG, 树.tag) : d.createElement(树.tag);
     for (const [k, v] of Object.entries(树.attrs)) if (v !== undefined && v !== null && v !== false) el.setAttribute(k, String(v));
-    for (const c of 树.children) el.appendChild(挂(c, d));
+    for (const c of 树.children) el.appendChild(挂(c, d, 是svg));
     return el;
   }
 
-  /** 起：拉四条接口、画、接页签点击。 */
-  async function 起(根, 取) {
-    const f = 取 || ((p) => fetch(p).then((r) => r.json()));
-    const 状态 = { 当前: null, 版本: null, 健康: false, 脉搏: null };
+  /** 页面登记的数据：逐条拉，拉不到的记 {错}，页面自己说清，不空白。 */
+  async function 拉页面数据(f, 状态) {
+    const 出 = 状态.数据 || {};
+    for (const 登 of Object.values(页面表)) {
+      for (const url of ((登 && 登.数据) || [])) {
+        try { 出[url] = await f(url); } catch (e) { 出[url] = { 错: e && e.message ? e.message : String(e) }; }
+      }
+    }
+    状态.数据 = 出;
+    return 出;
+  }
+
+  /** 起：拉四条接口与各页登记的数据、画、接页签点击；每 15 秒刷一次页面数据。 */
+  async function 起(根, 取, 选项) {
+    const o = 选项 || {};
+    const f = 取 || ((p) => fetch(p).then((r) => { if (!r.ok) throw new Error(`${r.status} ${p}`); return r.json(); }));
+    const 状态 = { 当前: null, 版本: null, 健康: false, 脉搏: null, 数据: {} };
     try { 状态.当前 = localStorage.getItem('壳.当前'); } catch (e) { /* 没有 localStorage 也能画 */ }
     let 视图表 = [];
     try {
@@ -83,6 +101,7 @@
       状态.健康 = !!(await f('/api/health')).行;
       状态.脉搏 = await f('/api/pulse');
     } catch (e) { 状态.健康 = false; }
+    await 拉页面数据(f, 状态);
     const 画 = () => { 根.replaceChildren(挂(渲染(视图表, 状态))); };
     根.addEventListener('click', (e) => {
       const b = e.target && e.target.closest ? e.target.closest('.页签') : null;
@@ -92,8 +111,9 @@
       画();
     });
     画();
+    if (o.刷新ms !== 0) setInterval(() => { 拉页面数据(f, 状态).then(画); }, o.刷新ms || 15000);
     return { 状态, 画, 视图表 };
   }
 
-  return { 节, 渲染, 挂, 起, 页面表, 占位页 };
+  return { 节, 渲染, 挂, 起, 页面表, 占位页, 拉页面数据 };
 });

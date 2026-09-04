@@ -60,15 +60,31 @@ test('壳④ 登记真页面就替掉占位；顶条有版本、健康、进度�
   assert.match(死.attrs.class, /死/); assert.match(文(死), /没应/);
 });
 
-test('壳⑤ 挂：树变 DOM——标签、属性、文本、层级都对（假 document）', () => {
-  const 造 = (tag) => ({ tag, attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = v; }, appendChild(c) { this.kids.push(c); } });
-  const doc = { createElement: 造, createTextNode: (t) => ({ text: t }) };
+test('壳⑤ 挂：树变 DOM——标签、属性、文本、层级都对；svg 及子孙走 createElementNS（假 document）', () => {
+  const 造 = (tag, ns) => ({ tag, ns: ns || null, attrs: {}, kids: [], setAttribute(k, v) { this.attrs[k] = v; }, appendChild(c) { this.kids.push(c); } });
+  const doc = { createElement: (t) => 造(t), createElementNS: (ns, t) => 造(t, ns), createTextNode: (t) => ({ text: t }) };
   const el = 壳.挂(壳.节('div', { class: 'a', 'data-键': '研发', 空: null }, '文', 壳.节('b', {}, '粗')), doc);
-  assert.strictEqual(el.tag, 'div');
+  assert.strictEqual(el.tag, 'div'); assert.strictEqual(el.ns, null);
   assert.deepStrictEqual(el.attrs, { class: 'a', 'data-键': '研发' }, 'null 属性不设');
   assert.deepStrictEqual(el.kids[0], { text: '文' });
   assert.strictEqual(el.kids[1].tag, 'b');
   assert.deepStrictEqual(el.kids[1].kids[0], { text: '粗' });
+  const svg = 壳.挂(壳.节('svg', { viewBox: '0 0 1 1' }, 壳.节('g', {}, 壳.节('rect', { x: 1 }), 壳.节('text', {}, 'T'))), doc);
+  assert.strictEqual(svg.ns, 'http://www.w3.org/2000/svg');
+  assert.strictEqual(svg.kids[0].ns, 'http://www.w3.org/2000/svg', 'g 也要 NS');
+  assert.strictEqual(svg.kids[0].kids[0].ns, 'http://www.w3.org/2000/svg', 'rect 也要 NS——不然画不出来');
+  assert.strictEqual(svg.kids[0].kids[0].attrs.x, '1');
+});
+
+test('壳⑦ 页面表登记 {画, 数据}：拉页面数据 逐条拉、拉不到记 错；渲染用 画', async () => {
+  壳.页面表.试 = { 画: (v) => 壳.节('section', { class: '页 试' }, '拉到：' + JSON.stringify(v)), 数据: ['/api/a', '/api/b'] };
+  try {
+    const 状态 = { 数据: {} };
+    await 壳.拉页面数据(async (u) => { if (u === '/api/b') throw new Error('炸'); return { u }; }, 状态);
+    assert.deepStrictEqual(状态.数据, { '/api/a': { u: '/api/a' }, '/api/b': { 错: '炸' } });
+    const 树 = 壳.渲染([{ 键: '试', 名: '试', 状态: '在建', 这一圈: [], 人在哪介入: [], 靠: [], 已建数: 0, 待建数: 0 }], { 当前: '试', 数据: 状态.数据 });
+    assert.match(文(树), /拉到：/);
+  } finally { delete 壳.页面表.试; }
 });
 
 test('壳⑥ 视图表为空 → 一页「没有系统」，不炸', () => {
