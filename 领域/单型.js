@@ -152,7 +152,9 @@ function 校验单(单, 上下文) {
 function 产于同专项更早的单(路, 单们, 本单) {
   if (!Array.isArray(单们)) return false;
   return 单们.some((s) => {
-    if (s.创建时间 && 本单 && 本单.创建时间 && !(s.创建时间 < 本单.创建时间)) return false;
+    // 「更早」= 不比本单晚。同一毫秒成的几张单创建时间相等，用严格小于会把上游判成「不更早」——
+    // 一个专项真跑第二次就偶发在这（三张草稿一口气成单，时间戳全一样）。
+    if (s.创建时间 && 本单 && 本单.创建时间 && s.创建时间 > 本单.创建时间) return false;
     const 出 = [...Object.values(s.产出 || {}), ...Object.values(s.预计产出 || {})];
     return 出.some((v) => (Array.isArray(v) ? v : [v]).includes(路));
   });

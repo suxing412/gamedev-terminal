@@ -116,6 +116,14 @@ const TABLE = [
     expectRedCase: '型⑨',
   },
   {
+    name: '单型：同一毫秒成的上游算「不更早」',
+    file: '领域/单型.js',
+    find: '    if (s.创建时间 && 本单 && 本单.创建时间 && s.创建时间 > 本单.创建时间) return false;',
+    replace: '    if (s.创建时间 && 本单 && 本单.创建时间 && s.创建时间 >= 本单.创建时间) return false;',
+    test: 'test/领域/单型.test.js',
+    expectRedCase: '型㉛',
+  },
+  {
     name: '单型：剥 什么都不剥',
     file: '领域/单型.js',
     find: '    if (谁.includes(角色)) 出[名] = 对象[名];',
