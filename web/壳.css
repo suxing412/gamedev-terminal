@@ -1,0 +1,43 @@
+/* 壳.css —— 单壳外框。深底、窄顶条、一行页签、一页正文。宽度关键处写死，不靠嵌套 flex 算。 */
+:root {
+  --底: #15171b; --面: #1d2026; --线: #2b2f37; --字: #d9dce2; --淡: #8b919c; --亮: #f2f4f7;
+  --建: #d9a441; --闭: #5fb97a; --未: #6c7380; --人: #e06c75; --活: #5fb97a; --死: #e06c75;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--底); color: var(--字); font: 14px/1.6 "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif; }
+#根 { min-height: 100%; }
+.等 { padding: 24px; color: var(--淡); }
+
+.壳 { display: flex; flex-direction: column; min-height: 100vh; }
+.顶条 { display: flex; align-items: center; gap: 16px; height: 40px; padding: 0 16px; background: var(--面); border-bottom: 1px solid var(--线); }
+.顶条 .牌 { font-weight: 600; color: var(--亮); }
+.顶条 .版本 { color: var(--淡); font-variant-numeric: tabular-nums; }
+.顶条 .健康::before { content: "●"; margin-right: 6px; }
+.顶条 .健康.活 { color: var(--活); }
+.顶条 .健康.死 { color: var(--死); }
+.顶条 .进度 { margin-left: auto; color: var(--淡); }
+
+.页签栏 { display: flex; gap: 4px; padding: 8px 12px 0; background: var(--面); border-bottom: 1px solid var(--线); overflow-x: auto; }
+.页签 { appearance: none; border: 1px solid transparent; border-bottom: none; background: transparent; color: var(--淡); padding: 8px 14px; border-radius: 6px 6px 0 0; cursor: pointer; font: inherit; white-space: nowrap; }
+.页签:hover { color: var(--字); }
+.页签.当前 { color: var(--亮); background: var(--底); border-color: var(--线); }
+.页签 .态 { display: inline-block; margin-left: 8px; font-style: normal; font-size: 11px; line-height: 16px; width: 16px; text-align: center; border-radius: 3px; color: #111; }
+.页签 .态.建 { background: var(--建); }
+.页签 .态.闭 { background: var(--闭); }
+.页签 .态.未 { background: var(--未); color: var(--亮); }
+
+.页面区 { flex: 1; padding: 20px 24px 40px; max-width: 980px; }
+.页 h2 { margin: 0 0 4px; font-size: 22px; color: var(--亮); }
+.页 h2 .状态 { margin-left: 12px; font-size: 12px; color: var(--淡); font-weight: normal; }
+.页 h3 { margin: 22px 0 8px; font-size: 14px; color: var(--淡); letter-spacing: .04em; }
+.占位说明 { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid var(--建); background: rgba(217,164,65,.08); color: var(--淡); }
+.圈 { margin: 0; padding-left: 28px; }
+.圈 li { padding: 2px 0; }
+.圈 li.人 { color: var(--亮); }
+.圈 li b { margin-left: 8px; font-size: 11px; padding: 0 6px; border-radius: 3px; background: var(--人); color: #fff; font-weight: normal; }
+blockquote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--线); color: var(--字); }
+.靠 { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 24px; }
+.靠 li { padding: 2px 0; break-inside: avoid; font-variant-numeric: tabular-nums; }
+.靠 li.已建 { color: var(--闭); }
+.靠 li.待建 { color: var(--淡); }
+.空 { color: var(--淡); }
