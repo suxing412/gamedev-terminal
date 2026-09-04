@@ -109,7 +109,7 @@ function 取单(池, 依赖) {
     const 卡 = [];
     for (const [k, v] of Object.entries(t.进项 || {})) for (const 路 of 数组(v)) {
       if (存在(路)) continue;
-      const 上 = (图.get(t.id) || []).map((u) => 按id.get(u)).find((s) => s && Object.values(s.产出 || {}).some((x) => 数组(x).includes(路)));
+      const 上 = (图.get(t.id) || []).map((u) => 按id.get(u)).find((s) => s && [...Object.values(s.产出 || {}), ...Object.values(s.预计产出 || {})].some((x) => 数组(x).includes(路)));
       if (上 && (上.状态 === '完成' || 上.状态 === '归档')) continue;
       卡.push(`${k}=${路}${上 ? `（上游 ${上.id} 在 ${上.状态}，没过闸）` : '（不在盘上，也没人产出）'}`);
     }

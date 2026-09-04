@@ -38,8 +38,11 @@ function 真版本() {
 }
 
 /** 改动清单：git diff 说了算。 */
-function 真git改动(工作目录) {
-  const 跑 = (args) => spawnSync('git', args, { cwd: 工作目录, encoding: 'utf8', windowsHide: true });
+function 真git改动(工作目录, 基线) {
+  // **core.quotepath=false**：git 默认把非 ASCII 路径打成八进制转义（"\346\226\271\346\241\210/x.md"），
+  // 改动清单里就没有「方案/x.md」这个文件——一个专项端到端第一次干跑就断在这：调研单交的中文路径方案
+  // 被初检判成「预计产出没交」加「越界」。09-03 记忆里就有这坑，这次是它在新仓的第一次复发。
+  const 跑 = (args) => spawnSync('git', ['-c', 'core.quotepath=false', ...args], { cwd: 工作目录, encoding: 'utf8', windowsHide: true });
   // **不能只用 git diff --name-only：它不列未跟踪的新文件。** 第 3 步端到端第一次干跑就断在这：
   // 假 query 写了 Hello.cs，改动清单却是空的，初检红。新建单产出的资产天然是新文件——
   // 这条不修，所有新建单都过不了初检。
@@ -53,12 +56,31 @@ function 真git改动(工作目录) {
   for (const l of 行) {
     const 码 = l.slice(0, 2); const 路 = l.slice(3).trim().replace(/^"|"$/g, '');
     if (!路) continue;
+    // **只算这一次跑改的**：基线里已有、且内容没变的，是上一张单留下的（一个专项端到端第二站断在这：
+    // TK-1 交的方案文件没提交，TK-2 跑完 status 里它还在，被判成 TK-2 越界）。
+    if (基线 && 基线.has(路) && 基线.get(路) === 内容哈希(工作目录, 路)) continue;
     文件.push(路);
     if (码 === '??') 未跟踪.push(路);
   }
   if (未跟踪.length) 跑(['add', '-N', '--', ...未跟踪]);
-  const 差 = 跑(['diff']);
+  const 差 = 文件.length ? 跑(['diff', '--', ...文件]) : { stdout: '' };
   return { 文件, diff: 差.stdout || '' };
+}
+
+function 内容哈希(工作目录, 路) {
+  try { return require('crypto').createHash('sha1').update(require('fs').readFileSync(path.join(工作目录, 路))).digest('hex'); }
+  catch (e) { return null; }   // 删掉的文件：哈希 null，与基线必不同 → 算改动
+}
+
+/** 跑前拍的基线：status 里每个路径 → 内容哈希。跑后只算和它不同的。 */
+function 真git基线(工作目录) {
+  const 状 = spawnSync('git', ['-c', 'core.quotepath=false', 'status', '--porcelain', '-uall'], { cwd: 工作目录, encoding: 'utf8', windowsHide: true });
+  const 基 = new Map();
+  for (const l of (状.stdout || '').split('\n').filter(Boolean)) {
+    const 路 = l.slice(3).trim().replace(/^"|"$/g, '');
+    if (路) 基.set(路, 内容哈希(工作目录, 路));
+  }
+  return 基;
 }
 
 /** PreToolUse 钩子：只管写类工具，别的放行。返回 SDK 认的形状。 */
@@ -91,6 +113,7 @@ async function 跑(进方, 依赖) {
   const d = 依赖 || {};
   const query = d.query || 真query();
   const git改动 = d.git改动 || 真git改动;
+  const git基线 = d.git基线 || (d.git改动 ? () => null : 真git基线);   // 注入了假 git改动 就不拍真基线
   const 时钟 = d.时钟 || (() => Date.now());
   const 版本 = d.版本 || 真版本();
   const N = d.日志尾行数 || 40;
@@ -111,6 +134,7 @@ async function 跑(进方, 依赖) {
   let 超时了 = false;
   const 表 = setTimeout(() => { 超时了 = true; ac.abort(); }, 进方.超时ms || 30 * 60 * 1000);
 
+  const 基线 = git基线(进方.工作目录);   // 跑前拍：跑后只算这一次改的
   const 起 = 时钟();
   const 行 = [];
   let 回执 = '';
@@ -137,7 +161,7 @@ async function 跑(进方, 依赖) {
   return {
     单号: 进方.单号,
     harness: { 名, 版本 },
-    改动: git改动(进方.工作目录),
+    改动: git改动(进方.工作目录, 基线),
     日志尾: 行.slice(-N).join('\n'),
     结果: { 退出, 耗时ms, token: { 输入: Number(u.input_tokens) || 0, 输出: Number(u.output_tokens) || 0 } },
     回执: (结果 && typeof 结果.result === 'string' && 结果.result) || 回执,
@@ -155,4 +179,4 @@ function 取文本(m) {
   return '';
 }
 
-module.exports = { 名, 跑, 造写闸钩子, 真git改动 };
+module.exports = { 名, 跑, 造写闸钩子, 真git改动, 真git基线 };

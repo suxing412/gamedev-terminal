@@ -145,13 +145,16 @@ function 校验单(单, 上下文) {
   return { 行: 违.length === 0, 违 };
 }
 
-/** 「更早」按 创建时间 比（U13）；两边都没时间戳时按数组顺序算它更早（调用方按创建时间序传）。 */
+/**
+ * 「更早」按 创建时间 比（U13）；两边都没时间戳时按数组顺序算它更早（调用方按创建时间序传）。
+ * 认 产出（执行后代码写的）也认 预计产出（拆单时项管写的）——拆单那一刻上游还没跑，只有预计。
+ */
 function 产于同专项更早的单(路, 单们, 本单) {
   if (!Array.isArray(单们)) return false;
   return 单们.some((s) => {
     if (s.创建时间 && 本单 && 本单.创建时间 && !(s.创建时间 < 本单.创建时间)) return false;
-    const 出 = s.产出 || {};
-    return Object.values(出).some((v) => (Array.isArray(v) ? v : [v]).includes(路));
+    const 出 = [...Object.values(s.产出 || {}), ...Object.values(s.预计产出 || {})];
+    return 出.some((v) => (Array.isArray(v) ? v : [v]).includes(路));
   });
 }
 

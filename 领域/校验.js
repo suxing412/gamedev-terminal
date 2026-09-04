@@ -42,6 +42,12 @@ function 初检(包, 单, 执行卷) {
   if (性 === '调研') {
     if (!改.some((f) => /\.md$/i.test(f))) 违.push('性质是调研，产出里没有 .md 方案文件');
   }
+  // 项管拆单时写的 预计产出，执行者必须交出来——下游单的进项就指着它
+  for (const v of Object.values((单 && 单.预计产出) || {})) {
+    for (const 路 of (Array.isArray(v) ? v : [v])) {
+      if (!改.includes(路)) 违.push(`预计产出 ${路} 没交（改动里没有）——下游单的进项指着它`);
+    }
+  }
   const 人判 = 状态机.人判因(单);
   if (人判) 待人判.push(`${人判}，过初检后还要人判`);
 

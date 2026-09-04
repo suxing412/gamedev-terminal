@@ -89,12 +89,13 @@ function 相邻(料, 工单id) {
 
 /**
  * 数据流：谁的进项引用了谁的产出。边就是 拆单判据② 的那条：进项由更早的单产出。
+ * 产出（执行后代码写的）与 预计产出（拆单时项管写的）都算——排期要在执行前就推出先后。
  * @returns Map<工单id, [产出被它引用的工单id]>
  */
 function 数据流(工单们) {
   const 们 = 工单们 || [];
   const 产出者 = new Map();   // 路径 → 工单id
-  for (const t of 们) for (const v of Object.values(t.产出 || {})) for (const 路 of 数组(v)) 产出者.set(路, t.id);
+  for (const t of 们) for (const v of [...Object.values(t.预计产出 || {}), ...Object.values(t.产出 || {})]) for (const 路 of 数组(v)) 产出者.set(路, t.id);
   const 图 = new Map();
   for (const t of 们) {
     const 上游 = new Set();

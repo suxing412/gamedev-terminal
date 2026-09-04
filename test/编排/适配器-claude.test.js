@@ -117,3 +117,37 @@ test('克⑥ 没装 SDK 又没注入 query → 报清楚，不是莫名 undefine
   }, /适配器-claude：没装|SDK/);
   void 原;
 });
+
+test('克⑧ 真git改动：中文路径原样回来（不是八进制转义），未跟踪的新文件也在，diff 里有它', () => {
+  const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
+  const { spawnSync } = require('node:child_process');
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'gdt-git-'));
+  try {
+    const g = (a) => spawnSync('git', a, { cwd: d, encoding: 'utf8', windowsHide: true });
+    g(['init', '-q']);
+    fs.mkdirSync(path.join(d, '方案'));
+    fs.writeFileSync(path.join(d, '方案', 'S-1-寻路.md'), '# 方案\n');
+    const r = C.真git改动(d);
+    assert.deepStrictEqual(r.文件, ['方案/S-1-寻路.md'], `得到的是 ${JSON.stringify(r.文件)}——八进制转义没关`);
+    assert.match(r.diff, /S-1-寻路\.md/);
+  } finally { fs.rmSync(d, { recursive: true, force: true }); }
+});
+
+test('克⑨ 基线：跑前盘上已有的没提交文件不算这一次的改动；这次新加的、这次改了内容的才算', () => {
+  const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
+  const { spawnSync } = require('node:child_process');
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'gdt-git-'));
+  try {
+    spawnSync('git', ['init', '-q'], { cwd: d, windowsHide: true });
+    fs.writeFileSync(path.join(d, '上一单留下的.md'), '旧');
+    fs.writeFileSync(path.join(d, '这次要改的.cs'), '旧内容');
+    const 基 = C.真git基线(d);
+    assert.strictEqual(基.size, 2);
+    fs.writeFileSync(path.join(d, '这次新加的.cs'), '新');
+    fs.writeFileSync(path.join(d, '这次要改的.cs'), '新内容');
+    const r = C.真git改动(d, 基);
+    assert.deepStrictEqual([...r.文件].sort(), ['这次新加的.cs', '这次要改的.cs'], `上一单留下的不该算：${JSON.stringify(r.文件)}`);
+    assert.ok(!/上一单留下的/.test(r.diff), 'diff 也只有这一次的');
+    assert.deepStrictEqual(C.真git改动(d).文件.length, 3, '不带基线就是盘上全部没提交的');
+  } finally { fs.rmSync(d, { recursive: true, force: true }); }
+});
