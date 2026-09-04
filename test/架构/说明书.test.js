@@ -202,10 +202,22 @@ test('书⑪ 每个顶层目录与文件都在 目录 表里（加了不写会�
 });
 
 test('书⑫ 目录 表里说的东西盘上真的有（写了没建也会红）', () => {
+  const 层目录 = new Set(表.层.map((l) => l.目录));
   for (const d of (表.目录 || [])) {
     assert.ok(在(d.名), `目录表里写了「${d.名}」，盘上没有`);
-    assert.ok(d.装什么 && d.装什么.length >= 8, `「${d.名}」的「装什么」太短`);
+    if (!层目录.has(d.名)) assert.ok(d.装什么 && d.装什么.length >= 8, `「${d.名}」的「装什么」太短`);
     assert.ok(d.谁改 && d.谁改.trim(), `「${d.名}」没写谁往里放东西`);
+  }
+});
+
+test('书⑳ 六个层在正本里只写一遍：目录表的层目录不许带「装什么」，说明书目录表那一格渲染的是层表的负责（甲-7）', () => {
+  const 犯 = 表.目录.filter((d) => 表.层.some((l) => l.目录 === d.名) && d.装什么 !== undefined).map((d) => d.名);
+  assert.deepStrictEqual(犯, [], `这些层目录在目录表里又写了一遍「装什么」：${犯.join('、')}——真源在 层[].负责`);
+  const md = 鲜生成().读('docs/说明书.md').split('\n');
+  for (const l of 表.层) {
+    const 行 = md.find((x) => x.startsWith(`| \`${l.目录}\` |`));
+    assert.ok(行, `说明书目录表里没有「${l.目录}」这一行`);
+    assert.ok(行.includes(l.负责.slice(0, 12)), `「${l.目录}」那一格渲染的不是层表的负责：${行.slice(0, 80)}`);
   }
 });
 
