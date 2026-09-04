@@ -105,21 +105,34 @@ async function 跑(进方, 依赖) {
     hooks: { PreToolUse: [{ matcher: 'Write|Edit|MultiEdit|NotebookEdit', hooks: [造写闸钩子(进方.执行卷, 进方.工作目录, 拒绝记录)] }] },
   };
 
+  // 超时：编排层规矩「每处外呼必须有超时」（09-04 评审 U10 抓到这里没有）。到点 abort，退出记 timeout。
+  const ac = new AbortController();
+  options.abortController = ac;
+  let 超时了 = false;
+  const 表 = setTimeout(() => { 超时了 = true; ac.abort(); }, 进方.超时ms || 30 * 60 * 1000);
+
   const 起 = 时钟();
   const 行 = [];
   let 回执 = '';
   let 结果 = null;
-  for await (const m of query({ prompt: 进方.提示词, options })) {
-    if (m.type === 'assistant') {
-      const 文 = 取文本(m);
-      if (文) { 行.push(...文.split('\n')); 回执 = 文; }
-    } else if (m.type === 'result') {
-      结果 = m;
+  try {
+    for await (const m of query({ prompt: 进方.提示词, options })) {
+      if (m.type === 'assistant') {
+        const 文 = 取文本(m);
+        if (文) { 行.push(...文.split('\n')); 回执 = 文; }
+      } else if (m.type === 'result') {
+        结果 = m;
+      }
     }
+  } catch (e) {
+    if (!超时了) throw e;                 // 不是我们掐的，照常炸
+    行.push(`[超时 ${进方.超时ms}ms，已 abort：${e && e.message}]`);
+  } finally {
+    clearTimeout(表);
   }
   const 耗时ms = 时钟() - 起;
   const u = (结果 && 结果.usage) || {};
-  const 退出 = !结果 ? 'error' : (结果.is_error || /error/.test(String(结果.subtype || ''))) ? 'error' : 'completed';
+  const 退出 = 超时了 ? 'timeout' : !结果 ? 'error' : (结果.is_error || /error/.test(String(结果.subtype || ''))) ? 'error' : 'completed';
 
   return {
     单号: 进方.单号,

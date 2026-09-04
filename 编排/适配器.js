@@ -58,6 +58,14 @@ function 路由(单, 上级协议) {
     return { harness: 单.执行池, 因: `上级指定（${r.因}）` };
   }
   const 拒 = [];
+  // 上级协议的 默认harness：「路由没别的依据时用它」（docs/协议/schema.json）——
+  // 09-04 评审 U20 抓到这句写了、路由从不读。仍要过能力校验，覆盖不了就落到优先序。
+  const 默 = 协议.权限声明(上级协议).默认harness;
+  if (默) {
+    const r = 覆盖(默, 需);
+    if (r.行) return { harness: 默, 因: `上级协议默认harness（${r.因}）` };
+    拒.push(`默认harness ${默}：${r.因}`);
+  }
   for (const 家 of 优先序) {
     const r = 覆盖(家, 需);
     if (r.行) return { harness: 家, 因: `自动路由，优先序第一个能覆盖的：${r.因}` };
@@ -70,11 +78,14 @@ function 路由(单, 上级协议) {
  * 进方契约：每家适配器吃的东西，一个形状。
  * 提示词由 编排/装配器 装（每步新会话、内容按状态机当前格定）；这里只收成品。
  */
-function 进方(单, 执行卷, 提示词, 工作目录) {
+const 默认超时ms = 30 * 60 * 1000;   // 旧仓的 30 分钟墙钟硬顶，先沿用
+
+function 进方(单, 执行卷, 提示词, 工作目录, 选项) {
   if (!单 || !单.id) throw new Error('进方：没有单');
   if (!执行卷 || !执行卷.哈希) throw new Error('进方：没有执行卷（要先过 领域/权限.编译执行卷）');
   if (typeof 提示词 !== 'string' || !提示词.trim()) throw new Error('进方：提示词为空');
   if (!工作目录) throw new Error('进方：没有工作目录');
+  const 超时ms = Number((选项 || {}).超时ms) || 默认超时ms;
   return Object.freeze({
     契约版本,
     单号: 单.id,
@@ -83,6 +94,7 @@ function 进方(单, 执行卷, 提示词, 工作目录) {
     执行卷,
     提示词,
     工作目录,
+    超时ms,   // 编排层规矩：每处外呼必须有超时（09-04 评审 U10）
   });
 }
 

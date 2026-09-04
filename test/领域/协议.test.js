@@ -61,3 +61,15 @@ test('议⑨ 权限声明与人格都是冻结的——执行卷里的权限不�
   const 声 = P.权限声明(好协议());
   assert.throws(() => { 'use strict'; 声.可碰目录 = ['/']; }, TypeError);
 });
+
+test('议⑩ 两层的输出键集 == schema 字段集（改 schema 加字段，代码自动带上；这条是规矩①的判据）', () => {
+  for (const 层 of P.层名) {
+    const 出 = 层 === '职责权限' ? P.权限声明(好协议()) : P.人格(好协议());
+    assert.deepStrictEqual(Object.keys(出).sort(), Object.keys(P.schema.层[层].字段).sort(), `${层} 的输出键集与 schema 不一致`);
+  }
+  // 缺省值从 schema 来：禁 默认 []，可指定下属harness 默认 false，没默认的 string 取 null
+  const 声 = P.权限声明({ 职责权限: { 职能: '程序', 可碰目录: [], 可用工具: [] } });
+  assert.deepStrictEqual(声.禁, []);
+  assert.strictEqual(声.可指定下属harness, false);
+  assert.strictEqual(声.默认harness, null);
+});

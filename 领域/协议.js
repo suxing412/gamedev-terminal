@@ -45,32 +45,31 @@ function 校验(协议) {
 }
 
 /**
+ * 取一层：**按 schema 的字段表出键**，不写死字段名（09-04 评审甲-13：以前六个键手写在这儿，
+ * schema 加字段这里不会带上，规矩①说的「加字段=改数据」是假的）。
+ * list 复制一份、bool 只认 true、其余缺省取 schema 默认（没有默认取 null）。议⑩ 盯着键集 == schema 字段集。
+ */
+function 取层(协议, 层) {
+  const 定义 = S.层[层];
+  const p = (协议 && 协议[层]) || {};
+  const 出 = {};
+  for (const [名, 定] of Object.entries(定义.字段)) {   // 按 schema 出键
+    const v = p[名];
+    if (定.类型 === 'list') 出[名] = [...(Array.isArray(v) ? v : (定.默认 || []))];
+    else if (定.类型 === 'bool') 出[名] = v === true;
+    else 出[名] = (v === undefined || v === null || v === '') ? (定.默认 !== undefined ? 定.默认 : null) : v;
+  }
+  return Object.freeze(出);
+}
+
+/**
  * 权限声明：从职责权限层导出，给 领域/权限 跟工单收紧求交。
  * **只从这一层取**——人格层的字段一个都不带进执行卷。
  */
-function 权限声明(协议) {
-  const p = (协议 && 协议.职责权限) || {};
-  const 定 = S.层.职责权限.字段;
-  return Object.freeze({
-    职能: p.职能 || null,
-    可碰目录: [...(p.可碰目录 || [])],
-    可用工具: [...(p.可用工具 || [])],
-    禁: [...(p.禁 || 定.禁.默认)],
-    默认harness: p.默认harness || null,
-    可指定下属harness: p.可指定下属harness === true,
-  });
-}
+function 权限声明(协议) { return 取层(协议, '职责权限'); }
 
 /** 人格：从人格语气层导出，只进对话会话。 */
-function 人格(协议) {
-  const p = (协议 && 协议.人格语气) || {};
-  return Object.freeze({
-    称呼: p.称呼 || null,
-    语气: p.语气 || '',
-    开场: p.开场 || '',
-    忌讳: [...(p.忌讳 || [])],
-  });
-}
+function 人格(协议) { return 取层(协议, '人格语气'); }
 
 /** 这份协议能不能覆写路由——「可指定下属harness」那一位。 */
 function 能指定下属harness(协议) {

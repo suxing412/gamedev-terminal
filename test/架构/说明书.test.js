@@ -11,8 +11,8 @@
 // 而且这张表的「待建」那一节就是**回归条件**：它清空之日，新仓可以取代旧仓。
 // 这一条也是制作人当晚定的（Q19 由 Q20 的答案定死）。
 //
-// 本仓口径 H104：判据必须验行为、且能自证能红。这个文件的每一条都能红——
-// 证法写在 test/架构/说明书自证.md 里，不是靠这段注释保证。
+// 本仓口径 H104：判据必须验行为、且能自证能红。证法是 tools/红证.js 变异台：把实现改坏一处，
+// 对应判据当场红，再还原——不是靠这段注释保证。还没上变异表的判据，就是还没证过能红的判据。
 'use strict';
 const assert = require('node:assert');
 const test = require('node:test');
@@ -25,6 +25,21 @@ const 表 = JSON.parse(fs.readFileSync(path.join(仓根, 'docs', '模块.json'),
 const 在 = (p) => fs.existsSync(path.join(仓根, p));
 const 读 = (p) => fs.readFileSync(path.join(仓根, p), 'utf8');
 
+// 鲜生成：用当前的生成器 + 正本生成到临时目录，**不碰盘上的生成物**。
+// 判生成器行为的那几条（⑬⑭⑯⑱⑲）都读它——读盘上的话，生成器改坏了盘上的旧文件还是好的，判据恒绿；
+// 而首版 ⑬ 为了让它们红，把生成物重写回盘，又把手改的现场抹平了（U39）。一次生成，全文件共用。
+let 鲜 = null;
+function 鲜生成() {
+  if (鲜) return 鲜;
+  const { execFileSync } = require('node:child_process');
+  const os = require('node:os');
+  const 临 = fs.mkdtempSync(path.join(os.tmpdir(), 'gdt-manual-'));
+  execFileSync(process.execPath, [path.join(仓根, 'tools', '出说明书.js'), '--到', 临], { cwd: 仓根 });
+  鲜 = { 根: 临, 读: (p) => fs.readFileSync(path.join(临, p), 'utf8') };
+  process.on('exit', () => { try { fs.rmSync(临, { recursive: true, force: true }); } catch (e) { /* 临时目录，删不掉也不碍事 */ } });
+  return 鲜;
+}
+
 // 层键 → 层定义
 const 层表 = new Map(表.层.map((l) => [l.键, l]));
 
@@ -36,23 +51,30 @@ test('书① 每个模块声明的文件都存在', () => {
   }
 });
 
-test('书② 每个模块都有自己的判据文件，且里面真的有断言', () => {
+test('书② 每个模块都有自己的判据文件，且跑起来真的有测试在跑', () => {
+  // 09-04 评审 U12：首版 grep 源码里的 `assert.` 数个数——注释里的 assert 也算，是文本不是行为（H104）。
+  // 现在真跑一遍那份判据文件，看 tap 报告里 tests 数 > 0。
+  const { spawnSync } = require('node:child_process');
   for (const m of 表.模块) {
     assert.ok(m.判据, `模块「${m.键}」没写判据字段`);
     assert.ok(在(m.判据), `模块「${m.键}」的判据 ${m.判据} 不存在`);
-    const 源 = 读(m.判据);
-    const n = (源.match(/\bassert\./g) || []).length;
-    assert.ok(n > 0, `模块「${m.键}」的判据文件里一个 assert 都没有——空判据比没判据坏，它看起来像验过了`);
+    // 这里自己就跑在 node --test 的子进程里，孙进程会继承 NODE_TEST_CONTEXT 而不按 tap 报告——摘掉它
+    const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
+    const p = spawnSync(process.execPath, ['--test', '--test-reporter=tap', m.判据.replace(/\\/g, '/')], { cwd: 仓根, encoding: 'utf8', timeout: 60000, env });
+    const 出 = (p.stdout || '') + (p.stderr || '');
+    const 数 = /^#\s*tests\s+(\d+)/m.exec(出);
+    assert.ok(数 && Number(数[1]) > 0, `模块「${m.键}」的判据文件跑起来一个测试都没有——空判据比没判据坏，它看起来像验过了`);
   }
 });
 
-test('书③ 声明的导出，require 出来真的有', () => {
+test('书③ 声明的导出与实际导出双向一致（说了没有会红，有了没说也会红）', () => {
+  // 09-04 评审 U28：首版只判「声明 ⊆ 实际」，模块悄悄多导出几个东西说明书不知道。
   for (const m of 表.模块) {
     const mod = require(path.join(仓根, m.文件));
-    for (const 名 of (m.导出 || [])) {
-      assert.ok(Object.prototype.hasOwnProperty.call(mod, 名),
-        `模块「${m.键}」说它导出 ${名}，实际没有。导出面是说明书的一部分，改了要一起改`);
-    }
+    const 实际 = Object.keys(mod).sort();
+    const 声明 = [...(m.导出 || [])].sort();
+    assert.deepStrictEqual(声明, 实际,
+      `模块「${m.键}」的导出面与说明书不一致。导出面是说明书的一部分，改了要一起改`);
   }
 });
 
@@ -168,11 +190,11 @@ test('书⑩ 回归条件是可数的：待建还剩几项', () => {
 
 test('书⑪ 每个顶层目录与文件都在 目录 表里（加了不写会红）', () => {
   const 表里 = new Set((表.目录 || []).map((d) => d.名));
-  const 忽略 = new Set(['.git', 'node_modules', '.gitignore']);
+  // 09-04 评审 U37：首版静默放过点目录，说明书却说「每一个顶层条目」。现在只放过 .git 与 node_modules。
+  const 忽略 = new Set(['.git', 'node_modules']);
   const 漏 = [];
   for (const e of fs.readdirSync(仓根, { withFileTypes: true })) {
     if (忽略.has(e.name)) continue;
-    if (e.name.startsWith('.') && !表里.has(e.name)) continue;   // 点文件按需登记
     if (!表里.has(e.name)) 漏.push(e.name);
   }
   assert.deepStrictEqual(漏, [],
@@ -187,27 +209,20 @@ test('书⑫ 目录 表里说的东西盘上真的有（写了没建也会红）
   }
 });
 
-test('书⑬ 所有生成物都与正本一致（手改生成的文件会被抓）', () => {
+test('书⑬ 所有生成物都与正本一致（手改生成的文件会被抓，且红几次都红）', () => {
   // git 不跟踪空目录：层目录还没有代码时，说明.md 就是它在仓里存在的唯一凭据。
-  // 「与正本一致」用**先全量快照、再重生成一次、最后逐份比对**来判。
+  // 「与正本一致」= 盘上的每份生成物 == 用当前生成器+正本鲜生成的那份。
   //
-  // **首版把它拆成了两条（⑬ 管层说明、⑭ 管总说明书），结果 ⑭ 恒真**：
-  // ⑬ 里那次 execFileSync 已经把 说明书.md 一起重生成了，等 ⑭ 去读「旧值」时
-  // 证据早被自己人抹掉了。实测：手改 docs/说明书.md，整套仍然全绿。
-  // 一条判据把另一条判据要验的现场清理了——所以它们必须合成一条。
-  const { execFileSync } = require('node:child_process');
+  // 两版教训：首版拆成两条（⑬ 管层说明、⑭ 管总说明书），⑬ 的重生成把 ⑭ 要验的现场抹了，⑭ 恒真；
+  // 二版合成一条但先快照再原地重生成——手改只红一次，第二次跑就绿（U39）。现在生成到临时目录，盘上一字不动。
   const 生成物 = ['docs/说明书.md', ...表.层.map((l) => path.join(l.目录, '说明.md'))];
-
-  const 快照 = new Map();
+  const 不一致 = [];
   for (const p of 生成物) {
     assert.ok(在(p), `缺 ${p}——跑一次 npm run 说明书`);
-    快照.set(p, 读(p));                       // **先全部读完，再重生成**
+    if (读(p) !== 鲜生成().读(p)) 不一致.push(p);
   }
-  execFileSync(process.execPath, [path.join(仓根, 'tools', '出说明书.js')], { cwd: 仓根 });
-  const 不一致 = [];
-  for (const [p, 旧] of 快照) if (读(p) !== 旧) 不一致.push(p);
   assert.deepStrictEqual(不一致, [],
-    `这些生成物与正本不一致，有人手改了：${不一致.join('、')}
+    `这些生成物与正本不一致，有人手改了或改了正本忘了重生成：${不一致.join('、')}
 ` +
     '改 docs/模块.json 然后 npm run 说明书');
 });
@@ -220,7 +235,7 @@ test('书⑭ 生成的每张表，每行格数等于表头格数（单元格里�
   const 切 = (行) => 行.split(/(?<!\\)\|/).slice(1, -1);   // 只按**未转义**的竖线切，去掉首尾空段
   const 坏 = [];
   for (const p of 生成物) {
-    const 行们 = 读(p).split('\n');
+    const 行们 = 鲜生成().读(p).split('\n');
     for (let i = 0; i + 1 < 行们.length; i++) {
       if (!/^\|/.test(行们[i]) || !/^\|\s*:?-+/.test(行们[i + 1])) continue;   // 表头 + 分隔行才是一张表
       const N = 切(行们[i]).length;
@@ -256,7 +271,7 @@ test('书⑮ 模块.json 的类型系统不许再抄一份 docs/单型 的形状
 });
 
 test('书⑯ 说明书渲染了 docs/单型 的全部形状（每个字段名、每个职能、每条签名与判据都找得到）', () => {
-  const md = 读('docs/说明书.md');
+  const md = 鲜生成().读('docs/说明书.md');
   const 缺 = [];
   for (const k of ['管线', '特性', '专项', '工单', '职能']) {
     const S = 单型(k);
@@ -271,6 +286,53 @@ test('书⑯ 说明书渲染了 docs/单型 的全部形状（每个字段名、
   for (const x of (工单S.拆单判据 || [])) if (!md.includes(x)) 缺.push(`拆单判据「${x.slice(0, 12)}…」`);
   for (const r of 单型('职能').表) if (!md.includes(`**${r.名}**`)) 缺.push(`职能 ${r.名}`);
   assert.deepStrictEqual(缺, [], `说明书里找不到：${缺.join('、')}——生成器没从 docs/单型 渲染`);
+});
+
+// 09-04 评审补的三条：层规矩要有判据（D2）、tools 要在说明书里（甲-15）、依赖以代码为真源（丁-5）。
+
+test('书⑰ 领域层不许 require fs / http / child_process / net（层表写了禁，就得有判据盯）', () => {
+  const 禁 = /require\(\s*['"](?:node:)?(fs|fs\/promises|http|https|child_process|net)['"]\s*\)/;
+  const 犯 = [];
+  const 走 = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) { 走(p); continue; }
+      if (!e.name.endsWith('.js')) continue;
+      const m = 禁.exec(fs.readFileSync(p, 'utf8'));
+      if (m) 犯.push(`${path.relative(仓根, p).replace(/\\/g, '/')} require 了 ${m[1]}`);
+    }
+  };
+  走(path.join(仓根, '领域'));
+  assert.deepStrictEqual(犯, [], `领域层碰了外界：${犯.join('；')}——变异台打不动、判据跑不快的根子就在这`);
+});
+
+test('书⑱ tools/ 下每个工具都在说明书里被提到（加了工具不写会红）', () => {
+  const md = 鲜生成().读('docs/说明书.md');
+  const 漏 = fs.readdirSync(path.join(仓根, 'tools')).filter((f) => f.endsWith('.js') && !md.includes(f));
+  assert.deepStrictEqual(漏, [], `这些工具说明书里没提：${漏.join('、')}。写进 docs/模块.json 目录表 tools 那一行`);
+});
+
+test('书⑲ 依赖以代码为真源：模块.json 不许再有 依赖 字段，说明书里每个模块的依赖列等于扫 require 的结果', () => {
+  const 有字段 = 表.模块.filter((m) => '依赖' in m).map((m) => m.键);
+  assert.deepStrictEqual(有字段, [], `这些模块在正本里手写了 依赖 字段：${有字段.join('、')}——那是第二份事实，删掉，生成器扫代码`);
+  const md = 鲜生成().读('docs/说明书.md').split('\n');
+  const re = /require\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/g;
+  const 错 = [];
+  for (const m of 表.模块) {
+    const 源 = 读(m.文件); const 自层 = m.文件.split('/')[0];
+    const 应 = new Set(); let x;
+    while ((x = re.exec(源))) {
+      const 相 = x[1].replace(/\.js$/, '');
+      const 段 = 相.startsWith('./') ? [自层, 相.slice(2)] : 相.slice(3).split('/');
+      if (段[0] !== 'docs') 应.add(段.join('/'));
+    }
+    const 行 = md.find((l) => l.startsWith(`| **${m.键}** |`));
+    assert.ok(行, `说明书已建表里没有「${m.键}」这一行`);
+    const 列 = 行.split('|')[5] || '';
+    for (const d of 应) if (!列.includes(d)) 错.push(`${m.键} 实际依赖 ${d}，说明书那一列是「${列.trim()}」`);
+    if (!应.size && 列.trim() !== '—') 错.push(`${m.键} 不依赖任何模块，说明书却写了「${列.trim()}」`);
+  }
+  assert.deepStrictEqual(错, []);
 });
 
 // ── 七、系统：能自己转起来的一圈 ────────────────────────────────

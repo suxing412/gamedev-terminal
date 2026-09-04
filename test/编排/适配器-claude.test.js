@@ -88,6 +88,22 @@ test('克⑤ 被拒的写进权限拒绝记录（可选项，随包走）', asyn
   void 记;
 });
 
+test('克⑦ 到点 abort：query 挂死 → 退出=timeout，不是永远等（编排层每处外呼必须有超时，U10）', async () => {
+  const 短 = A.进方({ id: 'T-9', 性质: '新建' }, 卷, '挂死', 'D:/w', { 超时ms: 30 });
+  const 挂死 = async function* (args) {
+    await new Promise((_, rej) => args.options.abortController.signal.addEventListener('abort', () => rej(new Error('aborted'))));
+    yield { type: 'result', subtype: 'success', result: '不该到这', usage: {} };
+  };
+  const 料 = await C.跑(短, { query: 挂死, git改动: 假git, 时钟: 假钟, 版本: 'v' });
+  assert.strictEqual(料.结果.退出, 'timeout');
+  assert.match(料.日志尾, /超时/);
+  // 没超时时 abortController 也在（SDK 认这个选项），但退出照常
+  const 记 = {};
+  const 正常 = await C.跑(进, { query: 假query(记), git改动: 假git, 时钟: 假钟, 版本: 'v' });
+  assert.ok(记.options.abortController, '每次都带 abortController');
+  assert.strictEqual(正常.结果.退出, 'completed');
+});
+
 test('克⑥ 没装 SDK 又没注入 query → 报清楚，不是莫名 undefined', async () => {
   const 原 = require.resolve;
   await assert.rejects(async () => {
