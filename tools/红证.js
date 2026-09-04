@@ -150,6 +150,15 @@ const TABLE = [
     // 不善后，「还原后全量」会因 ⑬ 不一致而红——不是实现坏了，是现场没清。
     善后: 'tools/出说明书.js',
   },
+  {
+    name: '出说明书：四层字段不从 docs/单型 渲染',
+    file: 'tools/出说明书.js',
+    find: '  const 字段们 = Object.entries(S.字段 || {});',
+    replace: '  const 字段们 = [];',
+    test: 'test/架构/说明书.test.js',
+    expectRedCase: '书⑯',
+    善后: 'tools/出说明书.js',
+  },
 ];
 
 const filter = process.argv[2] || '';

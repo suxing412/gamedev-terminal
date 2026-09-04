@@ -233,6 +233,46 @@ test('书⑭ 生成的每张表，每行格数等于表头格数（单元格里�
   assert.deepStrictEqual(坏, [], `表格被切坏了：\n  ${坏.join('\n  ')}`);
 });
 
+// 类型系统有两处真源：定义与道理在 模块.json，机器读的形状在 docs/单型/*.json（领域/单型 require 的）。
+// 09-04 晨制作人问「其它地方是不是也有问题」——有：性质签名、拆单判据、职能十个、四层字段在
+// 模块.json 里各抄了一份，措辞已经跟 docs/单型 漂开。⑮ 堵回流，⑯ 证明说明书真的从 docs/单型 渲染。
+const 单型 = (k) => JSON.parse(读(`docs/单型/${k}.json`));
+
+test('书⑮ 模块.json 的类型系统不许再抄一份 docs/单型 的形状（一个事实一处，H107）', () => {
+  const 型 = 表.类型系统;
+  assert.ok(型, '正本没有 类型系统');
+  const 犯 = [];
+  for (const x of ((型.性质 || {}).表 || [])) for (const k of ['进', '出']) if (k in x) 犯.push(`性质.表「${x.性质}」带了 ${k}——真源在 docs/单型/工单.json 性质签名`);
+  for (const k of Object.keys(型.职能 || {})) if (k !== '说明') 犯.push(`职能.${k}——真源在 docs/单型/职能.json`);
+  for (const k of Object.keys(型.四层schema || {})) if (k !== '说明') 犯.push(`四层schema.${k}——真源在 docs/单型/${k}.json`);
+  for (const k of Object.keys(型.拆单判据 || {})) if (k !== '说明') 犯.push(`拆单判据.${k}——真源在 docs/单型/工单.json 拆单判据`);
+  if ('专项' in 型) 犯.push('类型系统.专项——末单规则真源在 docs/单型/专项.json 规矩');
+  assert.deepStrictEqual(犯, [], `抄回来了：\n  ${犯.join('\n  ')}`);
+  // 两边说的是同一套东西：性质集合、产出三型集合必须相等
+  assert.deepStrictEqual(((型.性质 || {}).表 || []).map((x) => x.性质).sort(), Object.keys(单型('工单').性质签名).sort(),
+    '模块.json 性质表 与 工单.json 性质签名 的性质集合不一致');
+  assert.deepStrictEqual((型.产出 || []).map((x) => x.型).sort(), [...单型('专项').字段.产出类型.合法值].sort(),
+    '模块.json 产出三型 与 专项.json 产出类型合法值 不一致');
+});
+
+test('书⑯ 说明书渲染了 docs/单型 的全部形状（每个字段名、每个职能、每条签名与判据都找得到）', () => {
+  const md = 读('docs/说明书.md');
+  const 缺 = [];
+  for (const k of ['管线', '特性', '专项', '工单', '职能']) {
+    const S = 单型(k);
+    for (const 名 of Object.keys(S.字段 || {})) if (!md.includes('`' + 名 + '`')) 缺.push(`${k}.字段.${名}`);
+    for (const g of (S.规矩 || [])) if (!md.includes(g)) 缺.push(`${k}.规矩「${g.slice(0, 16)}…」`);
+  }
+  const 工单S = 单型('工单');
+  for (const [性质, 签] of Object.entries(工单S.性质签名)) {
+    if (!md.includes(`**${性质}**`)) 缺.push(`性质 ${性质}`);
+    for (const t of [...签.进, ...签.出]) if (!md.includes(t.replace(/\|/g, '\\|'))) 缺.push(`签名 ${性质}.${t}`);
+  }
+  for (const x of (工单S.拆单判据 || [])) if (!md.includes(x)) 缺.push(`拆单判据「${x.slice(0, 12)}…」`);
+  for (const r of 单型('职能').表) if (!md.includes(`**${r.名}**`)) 缺.push(`职能 ${r.名}`);
+  assert.deepStrictEqual(缺, [], `说明书里找不到：${缺.join('、')}——生成器没从 docs/单型 渲染`);
+});
+
 // ── 七、系统：能自己转起来的一圈 ────────────────────────────────
 //
 // 2026-09-03 两次被制作人打回来才写对：
