@@ -179,4 +179,4 @@ function 取文本(m) {
   return '';
 }
 
-module.exports = { 名, 跑, 造写闸钩子, 真git改动, 真git基线 };
+module.exports = { 名, 跑, 造写闸钩子, 真git改动, 真git基线, 拍基线: 真git基线 };
