@@ -139,6 +139,17 @@ const TABLE = [
     test: 'test/领域/校验.test.js',
     expectRedCase: '检③',
   },
+  {
+    name: '出说明书：单元格里的竖线不转义',
+    file: 'tools/出说明书.js',
+    find: ".replace(/\\|/g, '\\\\|')",
+    replace: ".replace(/\\|/g, '|')",
+    test: 'test/架构/说明书.test.js',
+    expectRedCase: '书⑭',
+    // 书⑬ 会用坏生成器把说明书重生成一遍，源码还原后盘上的生成物还是坏的；
+    // 不善后，「还原后全量」会因 ⑬ 不一致而红——不是实现坏了，是现场没清。
+    善后: 'tools/出说明书.js',
+  },
 ];
 
 const filter = process.argv[2] || '';
@@ -166,6 +177,7 @@ for (const r of rows) {
     out = (p.stdout || '') + (p.stderr || '');
   } finally {
     fs.writeFileSync(abs, orig, 'utf8');   // 无论如何还原
+    if (r.善后) spawnSync(process.execPath, [r.善后], { cwd: ROOT, timeout: 60000 });   // 还原源码后清现场（重生成等）
   }
   // 零测试也是失败：一个什么都没跑的套件，跟一个全过的套件在「没报错」上长得一样
   const ran = /^(?:ℹ|#)\s*tests\s+(\d+)/m.exec(out);
