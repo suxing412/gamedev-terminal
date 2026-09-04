@@ -41,6 +41,14 @@ test('装⑤ 交付段按性质变，且写死「不许自己判定做完、不�
   assert.ok(p.includes('不许自己判定') && p.includes('不许改工单状态'));
 });
 
+test('装⑦ 给了工作目录就写进提示词并要求相对路径；预计产出列成必须交出的文件', () => {
+  const p = Z.装({ ...单, 预计产出: { 资产: 'Assets/SLG/Pathfinder.cs' } }, 协议, {}, { 工作目录: 'D:/w' });
+  assert.ok(p.includes('工作目录：D:/w'));
+  assert.ok(p.includes('相对它写'));
+  assert.ok(p.includes('必须交出的文件') && p.includes('Assets/SLG/Pathfinder.cs'));
+  assert.ok(!Z.装(单, 协议, {}).includes('工作目录：'), '不给就不写');
+});
+
 test('装⑥ 没有单 → 炸', () => {
   assert.throws(() => Z.装(null, 协议, {}), /没有单/);
 });

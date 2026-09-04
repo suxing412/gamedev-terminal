@@ -163,7 +163,7 @@ async function 派(单0, 依赖) {
 
   const 进项内容 = {};
   for (const [k, v] of Object.entries(单.进项 || {})) 进项内容[k] = Array.isArray(v) ? v.map(读文件) : 读文件(v);
-  const 底稿 = 装配器.装(单, 协议们.执行, 进项内容);
+  const 底稿 = 装配器.装(单, 协议们.执行, 进项内容, { 工作目录: 依赖.工作目录 });
   const 家 = (依赖.适配器们 || 默认适配器们())[路.harness];
   if (!家 || typeof 家.跑 !== 'function') throw new Error(`取单器：没有 ${路.harness} 的适配器`);
 

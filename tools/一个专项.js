@@ -111,7 +111,19 @@ let 工作目录, 数据区;
     拍数 += 1;
     依赖.跑依赖 = 真 ? {} : { query: 假query(取.单), 版本: 'dry' };
     const r = await 取单器.派(取.单, 依赖);
-    if (r.结果 !== '进深检') 记(`5.${拍数} 派 ${取.单.id}`, false, `${r.结果}：${(r.检 && r.检.违.join('；')) || r.单.履历[r.单.履历.length - 1].因}`);
+    if (r.结果 !== '进深检') {
+      // 断了先把最后一个证据包摊开再清场——不然只剩一句「什么都没交」，查不出模型到底干了什么
+      try {
+        const 最后包 = JSON.parse(fs.readFileSync(path.join(数据区, '证据', `${取.单.id}-${包序}.json`), 'utf8'));
+        const 缩 = (s, n, 尾) => String(s || '').slice(尾 ? -n : 0, 尾 ? undefined : n).replace(/\n/g, '\n        ');
+        console.log(`  ── ${取.单.id} 最后一个证据包（共 ${包序} 包）──`);
+        console.log(`  退出 ${最后包.结果 && 最后包.结果.退出} · ${最后包.结果 && 最后包.结果.耗时ms}ms · token 入${最后包.结果 && 最后包.结果.token.输入}/出${最后包.结果 && 最后包.结果.token.输出} · 改动 ${JSON.stringify(最后包.改动 && 最后包.改动.文件)}`);
+        console.log('  回执: ' + 缩(最后包.回执, 600));
+        console.log('  日志尾: ' + 缩(最后包.日志尾, 1500, true));
+        if (最后包.权限拒绝记录) console.log('  写闸拒绝: ' + JSON.stringify(最后包.权限拒绝记录));
+      } catch (x) { console.log('  （读不到最后的证据包：' + x.message + '）'); }
+      记(`5.${拍数} 派 ${取.单.id}`, false, `${r.结果}：${(r.检 && r.检.违.join('；')) || r.单.履历[r.单.履历.length - 1].因}`);
+    }
     let 单 = r.单;
     // 深检站判
     const 检 = await 深检站.深检(单, JSON.parse(fs.readFileSync(path.join(数据区, '证据', `${单.id}-${包序}.json`), 'utf8')), { 问: (p) => 判官.问(p) });
@@ -163,7 +175,11 @@ let 工作目录, 数据区;
 })().catch((e) => {
   console.error('\n✗ ' + e.message);
   if (e.stack && !/链条断在/.test(e.message)) console.error(e.stack.split('\n').slice(1, 5).join('\n'));
-  try { if (工作目录) fs.rmSync(工作目录, { recursive: true, force: true }); if (数据区) fs.rmSync(数据区, { recursive: true, force: true }); } catch (x) { /* 临时目录 */ }
-  console.error('  已清理临时目录');
+  if (process.argv.includes('--留')) {
+    console.error(`  --留：临时目录留着查：工作目录 ${工作目录} · 数据区 ${数据区}`);
+  } else {
+    try { if (工作目录) fs.rmSync(工作目录, { recursive: true, force: true }); if (数据区) fs.rmSync(数据区, { recursive: true, force: true }); } catch (x) { /* 临时目录 */ }
+    console.error('  已清理临时目录');
+  }
   process.exit(1);
 });
