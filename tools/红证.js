@@ -257,8 +257,8 @@ const TABLE = [
   {
     name: '壳：当前页签不标',
     file: 'web/壳.js',
-    find: "节('button', { class: '页签' + (v.键 === 当前 ? ' 当前' : ''), 'data-键': v.键, title: v.状态 },",
-    replace: "节('button', { class: '页签', 'data-键': v.键, title: v.状态 },",
+    find: "节('button', { class: '页签' + (v.键 === 当前 ? ' 当前' : ''), 'data-键': v.键,",
+    replace: "节('button', { class: '页签', 'data-键': v.键,",
     test: 'test/web/壳.test.js',
     expectRedCase: '壳①',
   },

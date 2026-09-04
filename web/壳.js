@@ -28,7 +28,7 @@
   }
 
   function 页签栏(视图表, 当前) {
-    return 节('nav', { class: '页签栏' }, 视图表.map((v) => 节('button', { class: '页签' + (v.键 === 当前 ? ' 当前' : ''), 'data-键': v.键, title: v.状态 },
+    return 节('nav', { class: '页签栏', 'aria-label': '系统页签' }, 视图表.map((v) => 节('button', { class: '页签' + (v.键 === 当前 ? ' 当前' : ''), 'data-键': v.键, title: v.状态, 'aria-label': `${v.名}（${v.状态}）`, 'aria-current': v.键 === 当前 ? 'page' : null },
       v.名, 节('i', { class: '态 ' + (状态字[v.状态] || '') }, 状态字[v.状态] || '?'))));
   }
 
